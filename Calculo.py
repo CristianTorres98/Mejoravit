@@ -1,7 +1,7 @@
-#Calculo de comision del 19%
+#Calculo de comision del 22%
 def comision(prestamo):
-    porcentaje = (prestamo / 100) * 19
-    print(f'Comision (19%): -${porcentaje:.2f}')
+    porcentaje = (prestamo / 100) * 22
+    print(f'Comision (22%): -${porcentaje:.2f}')
     return porcentaje
   
 #Descuento de la comision
@@ -16,3 +16,5 @@ def comision_tramite(subtotal):
     print(f'Gastos de contrato: -$6000.00')
     print(f'Total libre: ${total:.2f}')
     return total
+
+

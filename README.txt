@@ -4,7 +4,7 @@ Es una app web desarrollada con Python y Streamlit que permite calcular descuent
 
 #Caracteristicas
 
--Interfaaz moderna y simple con logoy diseño corporativo
+-Interfaaz moderna y simple con logo y diseño corporativo
 -Calcula descuentos y hace lógica del negocio
 -Genera PDF profesional
 
@@ -12,3 +12,4 @@ Es una app web desarrollada con Python y Streamlit que permite calcular descuent
 -Python 3.x
 -Streamlit
 -ReportLab
+'Pandas
