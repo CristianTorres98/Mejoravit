@@ -13,7 +13,7 @@ from Calculo import comision, descuento_comision, comision_tramite
 
 
 # -------------------------------------------------
-# CONFIGURACIÓN DE PÁGINA
+# CONFIGURACIÓN
 # -------------------------------------------------
 st.set_page_config(
     page_title="Calculadora Credilight Mejoravit",
@@ -23,70 +23,60 @@ st.set_page_config(
 
 
 # -------------------------------------------------
-# FONDO CON IMAGEN LOCAL + TRANSPARENCIA
+# FONDO
 # -------------------------------------------------
 def set_background(image_file):
     with open(image_file, "rb") as f:
         encoded = base64.b64encode(f.read()).decode()
 
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/jpg;base64,{encoded}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
-        }}
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background-image: url("data:image/jpg;base64,{encoded}");
+        background-size: cover;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
 
-        .stButton button,
-        .stTextInput input,
-        .stNumberInput input,
-        table {{
-            background-color: rgba(255, 255, 255, 0.85);
-            border-radius: 8px;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-# ⚠️ Asegúrate que el archivo exista
 set_background("fondo.jpg")
-
-
-# -------------------------------------------------
-# CSS GENERAL
-# -------------------------------------------------
-st.markdown("""
-<style>
-.stButton button {
-    background-color: #D32F2F;
-    color: white;
-    font-size: 18px;
-    font-weight: bold;
-    border-radius: 10px;
-    padding: 10px 20px;
-    border: none;
-}
-.stButton button:hover {
-    background-color: #B71C1C;
-}
-</style>
-""", unsafe_allow_html=True)
 
 
 # -------------------------------------------------
 # HEADER
 # -------------------------------------------------
 st.image("logo.jpg", width=120)
-st.markdown(
-    "<h1 style='text-align:center; color:#D32F2F;'>Calculadora Credilight Mejoravit</h1>",
-    unsafe_allow_html=True
-)
+st.markdown("<h1 style='text-align:center; color:#D32F2F;'>Calculadora Credilight Mejoravit</h1>", unsafe_allow_html=True)
 st.write("Ingresa los datos del cliente para calcular el crédito.")
+
+
+# -------------------------------------------------
+# PANTALLA BURÓ
+# -------------------------------------------------
+if "buro_confirmado" not in st.session_state:
+    st.session_state["buro_confirmado"] = False
+
+if not st.session_state["buro_confirmado"]:
+    st.markdown("## ¿El cliente está en buró de crédito?")
+    
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("✅ No está en buró"):
+            st.session_state["en_buro"] = False
+            st.session_state["buro_confirmado"] = True
+            st.rerun()
+
+    with col2:
+        if st.button("⚠️ Sí está en buró"):
+            st.session_state["en_buro"] = True
+            st.session_state["buro_confirmado"] = True
+            st.rerun()
+
+    st.stop()
+
+if st.button("🔄 Cambiar respuesta de buró"):
+    st.session_state["buro_confirmado"] = False
+    st.rerun()
 
 
 # -------------------------------------------------
@@ -96,51 +86,35 @@ col1, col2 = st.columns(2)
 
 with col1:
     persona = st.text_input("Nombre del cliente:")
-    prestamo = st.number_input(
-        "Monto del crédito ($):",
-        min_value=0.0,
-        step=100.0,
-        format="%.2f",
-        value=None   # 👈 VACÍO
-    )
+    prestamo = st.number_input("Monto del crédito ($):", min_value=0.0, step=100.0, format="%.2f", value=None)
 
 with col2:
-    descuento_mensual = st.number_input(
-        "Descuento mensual ($):",
-        min_value=0.0,
-        step=100.0,
-        format="%.2f",
-        value=None   # 👈 VACÍO
-    )
+    descuento_mensual = st.number_input("Descuento mensual ($):", min_value=0.0, step=100.0, format="%.2f", value=None)
     meses = st.number_input("Plazo (meses):", min_value=0, step=1)
 
 
 # -------------------------------------------------
-# FUNCIÓN PDF
+# PDF
 # -------------------------------------------------
 def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
-                descuento_semanal, meses, fecha):
+                descuento_semanal, meses, fecha, en_buro):
 
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
 
-    # Marco
     c.setLineWidth(2)
     c.rect(40, 350, 520, 400)
 
-    # Logo
     try:
         c.drawImage("logo.jpg", 450, 700, width=100, height=100)
     except:
         pass
 
-    # Título
     c.setFont("Helvetica-Bold", 18)
     c.setFillColor(colors.HexColor("#D32F2F"))
     c.drawCentredString(300, 770, "Reporte Credilight Mejoravit")
     c.setFillColor(colors.black)
 
-    # Datos cliente
     c.setFont("Helvetica-Bold", 14)
     c.drawString(50, 700, f"Cliente: {persona}")
 
@@ -148,7 +122,7 @@ def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
     c.drawString(50, 680, "Empresa: Credilight Mejoravit")
     c.drawString(50, 660, f"Fecha del reporte: {fecha}")
 
-    # Tabla PDF
+    # TABLA
     data = [
         ["Concepto", "Monto ($)"],
         ["Monto del crédito", f"{prestamo:,.2f}"],
@@ -165,16 +139,15 @@ def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#D32F2F")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('GRID', (0,0), (-1,-1), 1, colors.black),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
-        ('FONTNAME', (0,5), (-1,5), 'Helvetica-Bold'),
         ('ALIGN', (1,1), (-1,-1), 'RIGHT'),
     ]))
 
     table.wrapOn(c, 50, 400)
     table.drawOn(c, 50, 450)
 
-    # Leyenda legal
+    # -------------------------------------------------
+    # LEYENDA ORIGINAL + EXTRA SI HAY BURÓ
+    # -------------------------------------------------
     aviso = (
         "Este documento es un resumen de crédito personal y no constituye "
         "una oferta de financiamiento. Los términos finales del crédito "
@@ -182,6 +155,9 @@ def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
         "Los cálculos mostrados son referenciales y pueden variar según "
         "condiciones reales del crédito."
     )
+
+    if en_buro:
+        aviso += " Nota: El cliente presenta historial en buró de crédito y se aplicó una reducción del 10%."
 
     c.setFont("Helvetica", 9)
     max_width = 500
@@ -210,17 +186,19 @@ def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
 
 
 # -------------------------------------------------
-# BOTÓN CALCULAR
+# CALCULAR
 # -------------------------------------------------
 if st.button("🧮 Calcular"):
 
-    if (
-        not persona
-        or prestamo is None or prestamo <= 0
-        or descuento_mensual is None or descuento_mensual <= 0
-    ):
-        st.warning("Completa todos los campos correctamente.")
+    if not persona or prestamo is None or descuento_mensual is None:
+        st.warning("Completa los campos.")
         st.stop()
+
+    en_buro = st.session_state.get("en_buro", False)
+
+    if en_buro:
+        prestamo = prestamo * 0.9
+        st.warning("⚠️ Se aplicó reducción del 10% por buró.")
 
     descuento_uno = comision(prestamo)
     subtotal = descuento_comision(prestamo, descuento_uno)
@@ -228,6 +206,7 @@ if st.button("🧮 Calcular"):
     descuento_semanal = descuento_mensual / 4
     fecha = datetime.now().strftime("%d/%m/%Y")
 
+    # 🔥 TABLA EN PANTALLA (REGRESÓ)
     conceptos = [
         "Monto del crédito",
         "Descuento comisión",
@@ -250,25 +229,12 @@ if st.button("🧮 Calcular"):
         f"{meses} meses"
     ]
 
-    tabla_html = (
-        "<table style='width:100%; border-collapse:collapse;'>"
-        "<tr style='background-color:#D32F2F; color:white;'>"
-        "<th style='padding:8px; border:1px solid black;'>Concepto</th>"
-        "<th style='padding:8px; border:1px solid black;'>Monto</th>"
-        "</tr>"
-    )
+    tabla_html = "<table style='width:100%; border-collapse:collapse; background-color:white;'>"
+    tabla_html += "<tr style='background-color:#D32F2F; color:white;'>"
+    tabla_html += "<th>Concepto</th><th>Monto</th></tr>"
 
     for cpt, mnt in zip(conceptos, montos):
-        estilo = ""
-        if "descuento" in cpt.lower() or cpt.lower() == "total":
-            estilo = "color:red; font-weight:bold;"
-
-        tabla_html += (
-            f"<tr style='{estilo}'>"
-            f"<td style='padding:8px; border:1px solid black;'>{cpt}</td>"
-            f"<td style='padding:8px; border:1px solid black; text-align:right;'>{mnt}</td>"
-            "</tr>"
-        )
+        tabla_html += f"<tr><td>{cpt}</td><td style='text-align:right;'>{mnt}</td></tr>"
 
     tabla_html += "</table>"
 
@@ -276,17 +242,16 @@ if st.button("🧮 Calcular"):
 
     st.session_state["pdf"] = generar_pdf(
         persona, prestamo, descuento_uno, subtotal,
-        total, descuento_semanal, meses, fecha
+        total, descuento_semanal, meses, fecha, en_buro
     )
 
 
 # -------------------------------------------------
-# DESCARGA PDF
+# DESCARGA
 # -------------------------------------------------
 if "pdf" in st.session_state:
     st.download_button(
         "📥 Descargar PDF",
         st.session_state["pdf"],
-        file_name="desglose_credito.pdf",
-        mime="application/pdf"
+        file_name="credito.pdf"
     )
