@@ -61,36 +61,46 @@ if not st.session_state["buro_confirmado"]:
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("✅ No está en buró"):
+        if st.button("✅ No está en buró de crédito"):
             st.session_state["en_buro"] = False
             st.session_state["buro_confirmado"] = True
             st.rerun()
 
     with col2:
-        if st.button("⚠️ Sí está en buró"):
+        if st.button("⚠️ Sí está en buró de crédito"):
             st.session_state["en_buro"] = True
             st.session_state["buro_confirmado"] = True
             st.rerun()
 
     st.stop()
 
-if st.button("🔄 Cambiar respuesta de buró"):
+if st.button("🔄 Cambiar estado de buró"):
     st.session_state["buro_confirmado"] = False
     st.rerun()
 
 
 # -------------------------------------------------
-# INPUTS
+# INPUTS DINÁMICOS
 # -------------------------------------------------
 col1, col2 = st.columns(2)
 
+en_buro = st.session_state.get("en_buro", False)
+
 with col1:
     persona = st.text_input("Nombre del cliente:")
-    prestamo = st.number_input("Monto del crédito ($):", min_value=0.0, step=100.0, format="%.2f", value=None)
+    
+    if en_buro:
+        prestamo = st.number_input("Saldo en la Subcuenta ($):", min_value=0.0, step=100.0, format="%.2f", value=None)
+    else:
+        prestamo = st.number_input("Monto del crédito ($):", min_value=0.0, step=100.0, format="%.2f", value=None)
 
 with col2:
-    descuento_mensual = st.number_input("Descuento mensual ($):", min_value=0.0, step=100.0, format="%.2f", value=None)
-    meses = st.number_input("Plazo (meses):", min_value=0, step=1)
+    if not en_buro:
+        descuento_mensual = st.number_input("Descuento mensual ($):", min_value=0.0, step=100.0, format="%.2f", value=None)
+        meses = st.number_input("Plazo (meses):", min_value=0, step=1)
+    else:
+        descuento_mensual = None
+        meses = None
 
 
 # -------------------------------------------------
@@ -122,17 +132,26 @@ def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
     c.drawString(50, 680, "Empresa: Credilight Mejoravit")
     c.drawString(50, 660, f"Fecha del reporte: {fecha}")
 
-    # TABLA
-    data = [
-        ["Concepto", "Monto ($)"],
-        ["Monto del crédito", f"{prestamo:,.2f}"],
-        ["Descuento comisión", f"-{descuento_uno:,.2f}"],
-        ["Sub Total", f"{subtotal:,.2f}"],
-        ["Costo de trámites", "-6,000.00"],
-        ["Total", f"{total:,.2f}"],
-        ["Descuento semanal", f"{descuento_semanal:,.2f}"],
-        ["Plazo", f"{meses} meses"],
-    ]
+    if en_buro:
+        data = [
+            ["Concepto", "Monto ($)"],
+            ["Saldo en la Subcuenta", f"{prestamo:,.2f}"],
+            ["Descuento comisión", f"-{descuento_uno:,.2f}"],
+            ["Sub Total", f"{subtotal:,.2f}"],
+            ["Costo de trámites", "-6,000.00"],
+            ["Total", f"{total:,.2f}"],
+        ]
+    else:
+        data = [
+            ["Concepto", "Monto ($)"],
+            ["Monto del crédito", f"{prestamo:,.2f}"],
+            ["Descuento comisión", f"-{descuento_uno:,.2f}"],
+            ["Sub Total", f"{subtotal:,.2f}"],
+            ["Costo de trámites", "-6,000.00"],
+            ["Total", f"{total:,.2f}"],
+            ["Descuento semanal", f"{descuento_semanal:,.2f}"],
+            ["Plazo", f"{meses} meses"],
+        ]
 
     table = Table(data, colWidths=[300, 150])
     table.setStyle(TableStyle([
@@ -145,9 +164,6 @@ def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
     table.wrapOn(c, 50, 400)
     table.drawOn(c, 50, 450)
 
-    # -------------------------------------------------
-    # LEYENDA ORIGINAL + EXTRA SI HAY BURÓ
-    # -------------------------------------------------
     aviso = (
         "Este documento es un resumen de crédito personal y no constituye "
         "una oferta de financiamiento. Los términos finales del crédito "
@@ -160,8 +176,6 @@ def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
         aviso += " Nota: El cliente presenta historial en buró de crédito y se aplicó una reducción del 10%."
 
     c.setFont("Helvetica", 9)
-    max_width = 500
-    x_start = 50
     y_start = 420
 
     words = aviso.split(" ")
@@ -170,7 +184,7 @@ def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
 
     for word in words:
         test_line = line + word + " "
-        if stringWidth(test_line, "Helvetica", 9) <= max_width:
+        if stringWidth(test_line, "Helvetica", 9) <= 500:
             line = test_line
         else:
             lines.append(line.strip())
@@ -178,7 +192,7 @@ def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
     lines.append(line.strip())
 
     for i, l in enumerate(lines):
-        c.drawString(x_start, y_start - i * 12, l)
+        c.drawString(50, y_start - i * 12, l)
 
     c.save()
     buffer.seek(0)
@@ -190,51 +204,62 @@ def generar_pdf(persona, prestamo, descuento_uno, subtotal, total,
 # -------------------------------------------------
 if st.button("🧮 Calcular"):
 
-    if not persona or prestamo is None or descuento_mensual is None:
+    if not persona or prestamo is None:
         st.warning("Completa los campos.")
         st.stop()
 
-    en_buro = st.session_state.get("en_buro", False)
+    if not en_buro and descuento_mensual is None:
+        st.warning("Completa todos los campos.")
+        st.stop()
 
     if en_buro:
-        prestamo = prestamo * 0.9
+        prestamo *= 0.9
         st.warning("⚠️ Se aplicó reducción del 10% por buró.")
 
     descuento_uno = comision(prestamo)
     subtotal = descuento_comision(prestamo, descuento_uno)
     total = comision_tramite(subtotal)
-    descuento_semanal = descuento_mensual / 4
+
+    descuento_semanal = descuento_mensual / 4 if descuento_mensual else 0
     fecha = datetime.now().strftime("%d/%m/%Y")
 
-    # 🔥 TABLA EN PANTALLA (REGRESÓ)
-    conceptos = [
-        "Monto del crédito",
-        "Descuento comisión",
-        "Sub Total",
-        "Costo de trámites",
-        "Total",
-        "Descuento mensual",
-        "Descuento semanal",
-        "Plazo"
-    ]
-
-    montos = [
-        f"${prestamo:,.2f}",
-        f"-${descuento_uno:,.2f}",
-        f"${subtotal:,.2f}",
-        "-$6,000.00",
-        f"${total:,.2f}",
-        f"${descuento_mensual:,.2f}",
-        f"${descuento_semanal:,.2f}",
-        f"{meses} meses"
-    ]
+    if en_buro:
+        conceptos = ["Saldo en la Subcuenta", "Descuento comisión", "Sub Total", "Costo de trámites", "Total"]
+        montos = [
+            f"${prestamo:,.2f}",
+            f"-${descuento_uno:,.2f}",
+            f"${subtotal:,.2f}",
+            "-$6,000.00",
+            f"${total:,.2f}"
+        ]
+    else:
+        conceptos = ["Monto del crédito", "Descuento comisión", "Sub Total", "Costo de trámites", "Total", "Descuento mensual", "Descuento semanal", "Plazo"]
+        montos = [
+            f"${prestamo:,.2f}",
+            f"-${descuento_uno:,.2f}",
+            f"${subtotal:,.2f}",
+            "-$6,000.00",
+            f"${total:,.2f}",
+            f"${descuento_mensual:,.2f}",
+            f"${descuento_semanal:,.2f}",
+            f"{meses} meses"
+        ]
 
     tabla_html = "<table style='width:100%; border-collapse:collapse; background-color:white;'>"
     tabla_html += "<tr style='background-color:#D32F2F; color:white;'>"
-    tabla_html += "<th>Concepto</th><th>Monto</th></tr>"
+    tabla_html += "<th style='padding:8px; border:1px solid black;'>Concepto</th>"
+    tabla_html += "<th style='padding:8px; border:1px solid black;'>Monto</th>"
+    tabla_html += "</tr>"
 
     for cpt, mnt in zip(conceptos, montos):
-        tabla_html += f"<tr><td>{cpt}</td><td style='text-align:right;'>{mnt}</td></tr>"
+        estilo = ""
+        if cpt.lower() == "total":
+            estilo = "font-weight:bold; color:#D32F2F;"
+
+        tabla_html += f"<tr>"
+        tabla_html += f"<td style='padding:8px; border:1px solid black; background-color:white; {estilo}'>{cpt}</td>"
+        tabla_html += f"<td style='padding:8px; border:1px solid black; text-align:right; background-color:white; {estilo}'>{mnt}</td>"
+        tabla_html += "</tr>"
 
     tabla_html += "</table>"
 
